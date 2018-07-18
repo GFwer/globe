@@ -8,9 +8,9 @@ var argv = require('minimist')(process.argv.slice(2)),
 
 var Hexasphere = require('hexasphere.js');
 
-var radius = 30;
-var numDivisions = 35;
-var scale = .45; 
+var radius = 500; //生成半径，默认500
+var numDivisions = 35; //分片数量
+var scale = .45; //缩放倍数
 var map = argv.m;
 
 if(argv.r){

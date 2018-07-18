@@ -41647,7 +41647,25 @@
       }
     };
 
-
+    var createGlobeTexture = function () {
+      var _this = this;
+      if(_this.mapUrl){
+        setTimeout(function(){
+          var loader = new THREE.TextureLoader();
+          loader.load( _this.mapUrl, function ( texture ) {
+            //create the sphere
+            var sphere = new THREE.SphereGeometry( 500, 50, 50 );
+            //map the texture to the material. Read more about materials in three.js docs
+            var material = new THREE.MeshBasicMaterial( { map: texture, overdraw: 0.7 } );
+            //create a new mesh with sphere geometry. 
+            var mesh = new THREE.Mesh( sphere, material );
+    
+            //add mesh to scene
+            _this.scene.add(mesh);
+          });
+        },300)
+      }
+    }
     var createParticles = function () {
 
       if (this.hexGrid) {
@@ -41789,6 +41807,7 @@
         colors[i + 8] = color.b;
 
       };
+
       // addTriangle()
       for (var i = 0; i < this.tiles.length; i++) {
         var t = this.tiles[i];
@@ -41821,15 +41840,15 @@
           index: i * chunkSize * 3,
           count: Math.min(triangles - (i * chunkSize), chunkSize) * 3
         };
-
+        
         geometry.offsets.push(offset);
 
       }
 
       geometry.computeBoundingSphere();
-
       this.hexGrid = new THREE.Mesh(geometry, pointMaterial);
       this.scene.add(this.hexGrid);
+
 
     };
 
@@ -41887,6 +41906,7 @@
       this.satelliteMeshes = [];
       this.satellites = {};
       this.quadtree = new Quadtree2(new Vec2(180, 360), 5);
+
       this.active = true;
 
       var defaults = {
@@ -41897,11 +41917,11 @@
         satelliteColor: "#ff0000",
         blankPercentage: 0,
         thinAntarctica: .01, // only show 1% of antartica... you can't really see it on the map anyhow
-        mapUrl: "resources/equirectangle_projection.png",
+        mapUrl: "/app/img/equirectangle_projection.png", //default globe texture
         introLinesAltitude: 1.10,
-        introLinesDuration: 2000,
+        introLinesDuration: 4000,
         introLinesColor: "#8FD8D8",
-        introLinesCount: 60,
+        introLinesCount: 200,
         scale: 1.0,
         dayLength: 28000,
         pointsPerDegree: 1.1,
@@ -41964,7 +41984,10 @@
       this.smokeProvider = new SmokeProvider(this.scene);
 
       createParticles.call(this);
+      //创建覆盖层
+      createGlobeTexture.call(this)
       setTimeout(cb, 500);
+
     };
 
     Globe.prototype.destroy = function (callback) {
@@ -42017,9 +42040,10 @@
       }
 
       this.quadtree.addObject(pin);
-
+      //隐藏聚集点的拖影和文字
       if (text.length > 0) {
         var collisions = this.quadtree.getCollisionsForObject(pin);
+        console.log(collisions)
         var collisionCount = 0;
         var tooYoungCount = 0;
         var hidePins = [];

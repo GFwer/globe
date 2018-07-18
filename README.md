@@ -14,6 +14,13 @@ The Encom Globe was written as part of a [larger project](http://www.robscanlon.
 
 View [index.html](index.html) for a usage example.
 
+#### Generate grid.js
+
+You can regenerate grid.js with the right parameters for you using the nodejs script buildgrid in the bin directory. Try this:
+```
+bin/buildgrid -r 500 -o grid.js -m build/resources/equirectangle_projection.png -s 0.4 -d 70
+```
+
 ### License
 
 The MIT License (MIT)
