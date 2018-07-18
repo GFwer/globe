@@ -2848,6 +2848,11 @@
     THREE.AdditiveBlending = 2;
     THREE.SubtractiveBlending = 3;
     THREE.MultiplyBlending = 4;
+    THREE.CustomBlending = 5;    THREE.NoBlending = 0;
+    THREE.NormalBlending = 1;
+    THREE.AdditiveBlending = 2;
+    THREE.SubtractiveBlending = 3;
+    THREE.MultiplyBlending = 4;
     THREE.CustomBlending = 5;
 
     // custom blending equations
@@ -16756,7 +16761,7 @@
 
       this.color = new THREE.Color(0xffffff);
 
-      this.linewidth = 1;
+      this.linewidth = 10;
       this.linecap = 'round';
       this.linejoin = 'round';
 
@@ -17458,7 +17463,7 @@
       this.attributes = null;
 
       this.shading = THREE.SmoothShading;
-
+      this.blending = THREE.AdditiveBlending;
       this.linewidth = 1;
 
       this.wireframe = false;
@@ -41666,6 +41671,106 @@
         },300)
       }
     }
+    var createGlobeGlow = function() {
+      var _this = this;
+      // var customMaterialAtmosphere = new THREE.ShaderMaterial( 
+      //   {
+      //     uniforms:       
+      //     { 
+      //       "c":   { type: "f", value: 0.4 },
+      //       "p":   { type: "f", value: 2.4 }
+      //     },
+      //     vertexShader:[
+      //       "varying vec3 vNormal;",
+      //       "void main() ",
+      //       "{",
+      //       "    vNormal = normalize( normalMatrix * normal );",
+      //       "    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
+      //       "}",
+      //       ].join('\n'),
+      //     fragmentShader:[
+      //       "uniform float c;",
+      //       "uniform float p;",
+      //       "varying vec3 vNormal;",
+      //       "void main() ",
+      //       "{",
+      //       "  float intensity = pow( c - dot( vNormal, vec3( 0.0, 0.0, 1.0 ) ), p ); ",
+      //       "  gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 ) * intensity;",
+      //       "}",
+      //       ].join("\n"),
+      //     transparent: true,
+      //     blending: THREE.AdditiveBlending
+      //   }
+      // );
+      //   var mesh = new THREE.Mesh( new THREE.SphereGeometry(600, 50, 50), customMaterialAtmosphere );
+      //   mesh.scale.x = mesh.scale.y = mesh.scale.z = 1.2;
+      //   mesh.material.side = THREE.BackSide;
+      //   mesh.material.opacity = 0.1;
+      //   mesh.material.transparent = true;
+      //   this.scene.add(mesh);
+        ////////////////
+        var moonGlow = new THREE.Mesh(
+          new THREE.SphereGeometry(550, 50, 50),
+          new THREE.ShaderMaterial({
+            uniforms: {
+              'c': {
+                type: 'f',
+                value: 0.4
+              },
+              'p': {
+                type: 'f',
+                value: 5.2
+              },
+              glowColor: {
+                type: 'c',
+                value: new THREE.Color(0x1e9fff)
+              },
+              viewVector: {
+                type: 'v3',
+                value: _this.camera.position
+              }
+            },
+            vertexShader: `             
+              uniform vec3 viewVector;
+              uniform float c;
+              uniform float p;
+              varying float intensity;
+              void main() 
+              {
+                vec3 vNormal = normalize( normalMatrix * normal );
+                vec3 vNormel = normalize( normalMatrix * viewVector );
+                intensity = pow( c - dot(vNormal, vNormel), p );
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+              }`
+            ,
+            fragmentShader: `
+              uniform vec3 glowColor;
+              varying float intensity;
+              void main() 
+              {
+                vec3 glow = glowColor * intensity;
+                  gl_FragColor = vec4( glow, 0.01 );
+              }`
+            ,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending,
+            // transparent: true
+            // THREE.NoBlending = 0;
+            // THREE.NormalBlending = 1;
+            // THREE.AdditiveBlending = 2;
+            // THREE.SubtractiveBlending = 3;
+            // THREE.MultiplyBlending = 4;
+            // THREE.CustomBlending = 5;
+            // blending: THREE.AdditiveBlending,
+            transparent: false,
+            opacity:0.1
+          })
+        );
+        // moonGlow.position.z = -this.radius;
+        moonGlow.scale.multiplyScalar(1.2);
+        console.log(moonGlow)
+        this.scene.add(moonGlow);
+    }
     var createParticles = function () {
 
       if (this.hexGrid) {
@@ -41915,9 +42020,11 @@
         markerColor: "#ffcc00",
         pinColor: "#00eeee",
         satelliteColor: "#ff0000",
+        ringColor:"0x1e9fff",
         blankPercentage: 0,
         thinAntarctica: .01, // only show 1% of antartica... you can't really see it on the map anyhow
         mapUrl: "/app/img/equirectangle_projection.png", //default globe texture
+        ringUrl:"/app/img/radial_layers_medium.jpg",
         introLinesAltitude: 1.10,
         introLinesDuration: 4000,
         introLinesColor: "#8FD8D8",
@@ -41986,6 +42093,7 @@
       createParticles.call(this);
       //创建覆盖层
       createGlobeTexture.call(this)
+      createGlobeGlow.call(this)
       setTimeout(cb, 500);
 
     };
@@ -42043,7 +42151,6 @@
       //隐藏聚集点的拖影和文字
       if (text.length > 0) {
         var collisions = this.quadtree.getCollisionsForObject(pin);
-        console.log(collisions)
         var collisionCount = 0;
         var tooYoungCount = 0;
         var hidePins = [];
@@ -42324,8 +42431,8 @@
         labelColor: "#FFF",
         font: "Inconsolata",
         fontSize: 20,
-        drawTime: 2000,
-        lineSegments: 150
+        drawTime: 3000,
+        lineSegments: 200//分段数，分段越多画的线越复杂
       }
 
       var point,
@@ -42438,9 +42545,9 @@
         _this.geometrySplineDotted = new THREE.Geometry();
         materialSplineDotted = new THREE.LineBasicMaterial({
           color: this.opts.lineColor,
-          linewidth: 1,
+          linewidth: 2,
           transparent: true,
-          opacity: .5
+          opacity: 1
         });
 
         latdist = (lat - previous.lat) / _this.opts.lineSegments;
@@ -42452,9 +42559,12 @@
         for (var j = 0; j < _this.opts.lineSegments + 1; j++) {
           // var nextlat = ((90 + lat1 + j*1)%180)-90;
           // var nextlon = ((180 + lng1 + j*1)%360)-180;
-
-
-          var nextlat = (((90 + previous.lat + j * latdist) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments) / 2) + (j * lat / _this.opts.lineSegments / 2);
+          //如果两个点距离比较近，先使用直线
+          if((Math.abs(previous.lat - lat) < 5&&Math.abs(previous.lon - lon) < 5) || Math.abs(previous.lon - lon) < 5){
+            var nextlat = ((90 + previous.lat + j * latdist) % 180) - 90;
+          }else{
+            var nextlat = (((90 + previous.lat + j * latdist) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments) / 2) + (j * lat / _this.opts.lineSegments / 2);
+          }
           var nextlon = ((180 + previous.lon + j * londist) % 360) - 180;
           pointList.push({ lat: nextlat, lon: nextlon, index: j });
           if (j == 0 || j == _this.opts.lineSegments) {
@@ -42474,45 +42584,114 @@
           _this.geometrySplineDotted.vertices.push(sPoint2);
         }
 
-
-        currentLat = previous.lat;
+        var dash_length = pointList.length/3;
+        var currentLat = previous.lat;
         currentLon = previous.lon;
         currentPoint;
         currentVert;
+        var exist_length = 0;
+        // update = function () {
+        //   var nextSpot = pointList.shift();
+        //   pointList.push(nextSpot)
+        //   var nextSpot2 = pointList2.shift();
+        //   pointList2.push(nextSpot2)
 
-        update = function () {
+        //   for (var x = 0; x < _this.geometrySpline.vertices.length; x++) {
+
+        //     currentVert = _this.geometrySpline.vertices[x];
+        //     currentPoint = utils.mapPoint(nextSpot.lat, nextSpot.lon);
+
+        //     currentVert2 = _this.geometrySplineDotted.vertices[x];
+        //     currentPoint2 = utils.mapPoint(nextSpot2.lat, nextSpot2.lon);
+
+        //     if (x >= nextSpot.index) {
+        //       currentVert.set(currentPoint.x * 1.2, currentPoint.y * 1.2, currentPoint.z * 1.2);
+        //       currentVert2.set(currentPoint2.x * 1.19, currentPoint2.y * 1.19, currentPoint2.z * 1.19);
+        //       continue;
+        //     }
+
+        //     if(x >= dash_length){
+        //       _this.geometrySplineDotted.vertices[x - dash_length].set( _this.geometrySplineDotted.vertices[x - dash_length + 1])
+        //     }
+        //     _this.geometrySpline.verticesNeedUpdate = true;
+        //     _this.geometrySplineDotted.verticesNeedUpdate = true;
+        //   }
+        //   if (pointList2.length > 0) {
+        //     console.log(_this.geometrySpline)
+        //     setTimeout(update, _this.opts.drawTime / _this.opts.lineSegments);
+        //     console.log(_this.geometrySpline.vertices)
+        //   }
+        // };
+        updateLine = function () {
           var nextSpot = pointList.shift();
-          var nextSpot2 = pointList2.shift();
+          // pointList.push(nextSpot)
+          // var nextSpot2 = pointList2.shift();
+          // pointList2.push(nextSpot2)
 
           for (var x = 0; x < _this.geometrySpline.vertices.length; x++) {
 
             currentVert = _this.geometrySpline.vertices[x];
             currentPoint = utils.mapPoint(nextSpot.lat, nextSpot.lon);
 
-            currentVert2 = _this.geometrySplineDotted.vertices[x];
-            currentPoint2 = utils.mapPoint(nextSpot2.lat, nextSpot2.lon);
+            // currentVert2 = _this.geometrySplineDotted.vertices[x];
+            // currentPoint2 = utils.mapPoint(nextSpot2.lat, nextSpot2.lon);
 
             if (x >= nextSpot.index) {
               currentVert.set(currentPoint.x * 1.2, currentPoint.y * 1.2, currentPoint.z * 1.2);
-              currentVert2.set(currentPoint2.x * 1.19, currentPoint2.y * 1.19, currentPoint2.z * 1.19);
+              // currentVert2.set(currentPoint2.x * 1.19, currentPoint2.y * 1.19, currentPoint2.z * 1.19);
+              continue;
             }
             _this.geometrySpline.verticesNeedUpdate = true;
-            _this.geometrySplineDotted.verticesNeedUpdate = true;
+            // _this.geometrySplineDotted.verticesNeedUpdate = true;
           }
           if (pointList.length > 0) {
-            setTimeout(update, _this.opts.drawTime / _this.opts.lineSegments);
+            setTimeout(updateLine, _this.opts.drawTime*3 / _this.opts.lineSegments);
           }
-
         };
+        updateDash = function () {
+          // var nextSpot = pointList.shift();
+          // pointList.push(nextSpot)
+          var nextSpot2 = pointList2.shift();
+          pointList2.push(nextSpot2)
 
-        update();
+          for (var y = 0; y < _this.geometrySpline.vertices.length; y++) {
 
+            // currentVert = _this.geometrySpline.vertices[x];
+            // currentPoint = utils.mapPoint(nextSpot.lat, nextSpot.lon);
+
+            currentVert2 = _this.geometrySplineDotted.vertices[y];
+            currentPoint2 = utils.mapPoint(nextSpot2.lat, nextSpot2.lon);
+
+            if (y >= nextSpot2.index) {
+              // currentVert.set(currentPoint.x * 1.2, currentPoint.y * 1.2, currentPoint.z * 1.2);
+              currentVert2.set(currentPoint2.x * 1.19, currentPoint2.y * 1.19, currentPoint2.z * 1.19);
+              continue;
+            }
+
+            if(y >= dash_length){
+              _this.geometrySplineDotted.vertices[y - dash_length].set( _this.geometrySplineDotted.vertices[y - dash_length + 1])
+            }
+            // _this.geometrySpline.verticesNeedUpdate = true;
+            _this.geometrySplineDotted.verticesNeedUpdate = true;
+          }
+          // console.log(_this.scene.children)
+          // console.log(_this.marker)
+          // var remove = false;
+          // _this.scene.children.map(function(elem){remove =(elem.id==_this.marker.id)})
+          if (pointList2.length > 0) {
+            setTimeout(updateDash, _this.opts.drawTime / _this.opts.lineSegments);
+          }
+        };
+        updateLine();
+        updateDash();
+        
         this.scene.add(new THREE.Line(_this.geometrySpline, materialSpline));
         this.scene.add(new THREE.Line(_this.geometrySplineDotted, materialSplineDotted, THREE.LinePieces));
       }
 
       this.scene.add(this.marker);
       this.scene.add(this.labelSprite);
+
 
     };
 
@@ -42537,9 +42716,10 @@
           _this.scene.remove(ref.geometrySplineDotted);
         }
       }
-
-      for (var j = 0; j < _this.next.length; j++) {
+      
+      for (var j = 0; j < _this.next.length ; j++) {
         (function (k) {
+          console.log(_this.next)
           update(_this.next[k]);
         })(j);
       }
