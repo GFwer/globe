@@ -42129,13 +42129,14 @@
         topColor: this.pinTopColor
       }
 
-      var altitude = 1.1;
+      var altitude = 1.0;
 
       if (typeof text != "string" || text.length === 0) {
-        altitude -= .05 + Math.random() * .05;
+        altitude -= .03 + Math.random() * .0005;
       }
 
       var pin = new Pin(lat, lon, text, altitude, this.scene, this.smokeProvider, opts);
+
 
       this.pins.push(pin);
 
@@ -42197,13 +42198,17 @@
     }
 
     Globe.prototype.addMarker = function (lat, lon, text, connected, _opts) {
-      
+
       var marker;
       var opts = {
         markerColor: this.markerColor,
         markerLineColor: this.markerLineColor,
         markerDashColor: this.markerDashColor,
+        markerUnderLineColor: '#fff',
         warnColor: '',
+        fontSize: 15,
+        showLabel: false,
+        type: 'circle'
       };
 
       if (_opts) {
@@ -42213,15 +42218,23 @@
           }
         }
       }
-
+      //bootlean 默认链接上一个
       if (typeof connected == "boolean" && connected) {
-        marker = new Marker(lat, lon, text, 1.2, this.markers[this.markers.length - 1], this.scene, opts);
+        marker = new Marker(lat, lon, text, 1.05, this.markers[this.markers.length - 1], this.scene, opts);
+        //obj 链接该点
       } else if (typeof connected == "object") {
-        marker = new Marker(lat, lon, text, 1.2, connected, this.scene, opts);
+        marker = new Marker(lat, lon, text, 1.05, connected, this.scene, opts);
+        // string 查找名字链接
+      } else if (typeof connected == 'string') {
+        for (var i = 0; i < this.markers.length; i++) {
+          if (this.markers[i].text == connected) {
+            marker = new Marker(lat, lon, text, 1.05, this.markers[i], this.scene, opts);
+            break;
+          }
+        }
       } else {
-        marker = new Marker(lat, lon, text, 1.2, null, this.scene, opts);
+        marker = new Marker(lat, lon, text, 1.05, null, this.scene, opts);
       }
-
       this.markers.push(marker);
 
       if (this.markers.length > this.maxMarkers) {
@@ -42441,17 +42454,21 @@
       /* options that can be passed in */
       var opts = {
         lineColor: "#344e99",
-        markerLineColor: '#344e99',
+        markerLineColor: '#1e9fff',
         markerDashColor: '#344e99',
         lineWidth: 1,
         markerColor: "#FFCC00",
         warnColor: '',
         labelColor: "#FFF",
+        showLabel: false,
         font: "Inconsolata",
         fontSize: 15,
         drawTime: 3000,
+        markerUnderLineColor: '#fff',
         lineSegments: 100,//分段数，分段越多画的线分越细,画的点越多，如果两点距离较短影响粒子数量
         lineSegments2: 400,
+        type: 'circle',
+        altitude: 1.05,
         // numParticles:400//粒子数（实际粒子数小于等于分段数
       }
 
@@ -42497,49 +42514,78 @@
         previousPoint = utils.mapPoint(previous.lat, previous.lon);
       }
 
-      // if (!scene._encom_markerTexture) {
-      var fillColor = _opts.warnColor ? _opts.warnColor : this.opts.markerColor;
-      scene._encom_markerTexture = createMarkerTexture(fillColor);
-      // }
+      if (this.opts.type == 'circle') {
+        //add circle
+        var fillColor = _opts.warnColor ? _opts.warnColor : this.opts.markerColor;
+        scene._encom_markerTexture = createMarkerTexture(fillColor);
 
-      markerMaterial = new THREE.SpriteMaterial({ map: scene._encom_markerTexture, opacity: .8, depthTest: true, fog: true });
-      this.marker = new THREE.Sprite(markerMaterial);
+        markerMaterial = new THREE.SpriteMaterial({ map: scene._encom_markerTexture, opacity: .8, depthTest: true, fog: true });
+        this.marker = new THREE.Sprite(markerMaterial);
 
-      this.marker.scale.set(0, 0);
-      this.marker.position.set(point.x * altitude, point.y * altitude, point.z * altitude);
+        this.marker.scale.set(0, 0);
+        this.marker.position.set(point.x * altitude, point.y * altitude, point.z * altitude);
+        new TWEEN.Tween({ x: 0, y: 0 })
+          .to({ x: 30, y: 30 }, 300)
+          .easing(TWEEN.Easing.Elastic.Out)
+          .onUpdate(function () {
+            _this.marker.scale.set(this.x, this.y);
+          })
+          .start();
+      } else if (this.opts.type == 'line') {
+        //add line 
+        this.lineGeometry = new THREE.Geometry();
+        lineMaterial = new THREE.LineBasicMaterial({
+          color: '#fff',
+          linewidth: opts.lineWidth,
+          transparent: true,
+          opacity: 0.8
+        });
 
-      labelCanvas = utils.createLabel(text.toUpperCase(), this.opts.fontSize, this.opts.warnColor ? this.opts.warnColor : this.opts.labelColor, this.opts.font, this.opts.warnColor ? this.opts.warnColor : this.opts.markerColor);//text, size, color, font, underlineColor
-      labelTexture = new THREE.Texture(labelCanvas);
-      labelTexture.needsUpdate = true;
+        point = utils.mapPoint(lat, lon);
 
-      labelMaterial = new THREE.SpriteMaterial({
-        map: labelTexture,
-        useScreenCoordinates: false,
-        opacity: 0.5,
-        depthTest: true,
-        fog: true
-      });
+        this.lineGeometry.vertices.push(new THREE.Vector3(point.x, point.y, point.z));
+        this.lineGeometry.vertices.push(new THREE.Vector3(point.x, point.y, point.z));
+        this.marker = new THREE.Line(this.lineGeometry, lineMaterial);
 
-      this.labelSprite = new THREE.Sprite(labelMaterial);
-      this.labelSprite.position = { x: point.x * altitude * 1.02, y: point.y * altitude * 1.05 + (point.y < 0 ? -15 : 30), z: point.z * altitude * 1.02 };
-      this.labelSprite.scale.set(labelCanvas.width, labelCanvas.height);
+        new TWEEN.Tween(point)
+          .to({ x: point.x * altitude, y: point.y * altitude, z: point.z * altitude }, 1000)
+          .easing(TWEEN.Easing.Elastic.Out)
+          .onUpdate(function () {
+            _this.lineGeometry.vertices[1].x = this.x;
+            _this.lineGeometry.vertices[1].y = this.y;
+            _this.lineGeometry.vertices[1].z = this.z;
+            _this.lineGeometry.verticesNeedUpdate = true;
+          }).start();
+      }
 
-      new TWEEN.Tween({ opacity: 0 })
-        .to({ opacity: 1 }, 500)
-        .onUpdate(function () {
-          labelMaterial.opacity = this.opacity
-        }).start();
+      if (this.opts.showLabel) {
+        labelCanvas = utils.createLabel(text.toUpperCase(), this.opts.fontSize, this.opts.warnColor ? this.opts.warnColor : this.opts.labelColor, this.opts.font, this.markerUnderLineColor);//text, size, color, font, underlineColor
+        labelTexture = new THREE.Texture(labelCanvas);
+        labelTexture.needsUpdate = true;
+
+        labelMaterial = new THREE.SpriteMaterial({
+          map: labelTexture,
+          useScreenCoordinates: false,
+          opacity: 0.2,
+          depthTest: true,
+          fog: true
+        });
+
+        this.labelSprite = new THREE.Sprite(labelMaterial);
+        this.labelSprite.position = { x: point.x * altitude, y: point.y * altitude + (point.y < 0 ? -15 : 30), z: point.z * altitude };
+        this.labelSprite.scale.set(labelCanvas.width, labelCanvas.height);
+
+        new TWEEN.Tween({ opacity: 0 })
+          .to({ opacity: 1 }, 500)
+          .onUpdate(function () {
+            labelMaterial.opacity = this.opacity
+          }).start();
+      }
 
 
 
-      new TWEEN.Tween({ x: 0, y: 0 })
-        .to({ x: 50, y: 50 }, 2000)
-        .easing(TWEEN.Easing.Elastic.Out)
-        .onUpdate(function () {
-          _this.marker.scale.set(this.x, this.y);
-        })
-        .delay((this.previous ? _this.opts.drawTime : 0))
-        .start();
+
+
 
       if (this.previous) {
 
@@ -42562,19 +42608,19 @@
         var distance = Math.sqrt(Math.pow((previous.lat - lat), 2) + Math.pow((previous.lon - lon), 2));
 
         if (distance < 50) {
-          this.opts.lineSegments = (distance * 10)
+          this.opts.numParticles = this.opts.lineSegments * 10
           // this.opts.numParticles = this.opts.lineSegments / 10;
         } else {
           // this.opts.numParticles = this.opts.lineSegments;
-          this.opts.numParticles = 50;
+          this.opts.numParticles = 30;
         }
 
         _this.geometrySpline = new THREE.Geometry();
         materialSpline = new THREE.LineBasicMaterial({
-          color: this.opts.markerLineColor,
+          color: '#ea376f',
           transparent: true,
           linewidth: 2,
-          opacity: .5
+          opacity: .4
         });
 
         _this.geometrySplineDotted = new THREE.Geometry();
@@ -42602,20 +42648,10 @@
               v = max;
           return v;
         }
-        checkIndex = function (index, length) {
-          if (index < length / 10) {
-            return lenght - 1
-          } else if (index < length / 9) {
-            return length - 2
-          } else if (index < length / 8) {
-            return length - 3
-          } else {
-            return index - length / 10 - length / 9 - length / 8
-          }
-        }
+
         var pMaterial = new THREE.ParticleBasicMaterial({
           color: 0xed4981,
-          size: 20,
+          size: distance < 50 ? 8 : 20,
           map: THREE.ImageUtils.loadTexture(
             "/app/img/bigscreen/particle.png"
           ),
@@ -42638,21 +42674,22 @@
         for (var j = 0; j < _this.opts.lineSegments2 + 1; j++) {
 
           //如果两个点距离比较近的话，先使用直线
-          if (distance < 20) {
-            var nextlat = ((90 + previous.lat + j * latdist) % 180) - 90;
-            var nextlat2 = ((90 + previous.lat + j * latdist2) % 180) - 90;
-            
-          } else {
-            var nextlat = (((90 + previous.lat + j * latdist) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments) / 2) + (j * lat / _this.opts.lineSegments / 2);
-            var nextlat2 = (((90 + previous.lat + j * latdist2) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments2) / 2) + (j * lat / _this.opts.lineSegments2 / 2);
-          }
+          // if (distance < 20) {
+          var nextlat = ((90 + previous.lat + j * latdist) % 180) - 90;
+          var nextlat2 = ((90 + previous.lat + j * latdist2) % 180) - 90;
+          // }
+          // //曲线
+          // else {
+          // var nextlat = (((90 + previous.lat + j * latdist) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments) / 2) + (j * lat / _this.opts.lineSegments / 2);
+          // var nextlat2 = (((90 + previous.lat + j * latdist2) % 180) - 90) * (.5 + Math.cos(j * (5 * Math.PI / 2) / _this.opts.lineSegments2) / 2) + (j * lat / _this.opts.lineSegments2 / 2);
+          // }
           var nextlon = ((180 + previous.lon + j * londist) % 360) - 180;
           var nextlon2 = ((180 + previous.lon + j * londist2) % 360) - 180;
           pointList.push({ lat: nextlat, lon: nextlon, index: j });
           // if (j == 0 || j == _this.opts.lineSegments) {
           pointList2.push({ lat: nextlat2, lon: nextlon2, index: j });
           if (j < _this.opts.lineSegments + 1) {
-            sPoint = new THREE.Vector3(startPoint.x * 1.2, startPoint.y * 1.2, startPoint.z * 1.2);
+            sPoint = new THREE.Vector3(startPoint.x * altitude, startPoint.y * altitude, startPoint.z * altitude);
             sPoint.globe_index = j;
             _this.geometrySpline.vertices.push(sPoint);
           }
@@ -42670,14 +42707,19 @@
 
           // _this.geometrySplineDotted.vertices.push(sPoint2);
         }
+
         var pathList = [];
         pointList2.map(function (elem, index) {
           var point = utils.mapPoint(elem.lat, elem.lon);
-          var particle = new THREE.Vector3(point.x * 1.2, point.y * 1.2, point.z * 1.2)
+          var particle = new THREE.Vector3(point.x * altitude, point.y * altitude, point.z * altitude)
           pathList.push(particle)
         })
 
-        // _this.opts.numParticles = pointList2.length / 3;
+        //反方向
+        pathList.reverse();
+        this.geometrySpline.vertices = this.geometrySpline.vertices.reverse();
+        pointList.reverse();
+
 
         //较多点聚集在一起的更亮的效果
         var frontBlinkIndex = _this.opts.numParticles / 10;
@@ -42687,7 +42729,7 @@
             // var desiredIndex = checkIndex(k,_this.opts.numParticles)
             var rIndex = constrain(Math.floor(desiredIndex), 0, pointList2.length - 1);
             var point = utils.mapPoint(pointList2[k].lat, pointList2[k].lon);
-            var particle = new THREE.Vector3(point.x * 1.2, point.y * 1.2, point.z * 1.2)
+            var particle = new THREE.Vector3(point.x * altitude, point.y * altitude, point.z * altitude)
             particle.moveIndex = rIndex;
             particle.nextIndex = rIndex + 1;
             if (particle.nextIndex >= pointList2.length) {
@@ -42697,7 +42739,26 @@
             particle.path = pathList;
             _this.geometrySplineDotted.vertices.push(particle);
           }
+          // else if (distance > 50 && k > _this.opts.lineSegments / 3 && k < _this.opts.lineSegments / 3 + _this.opts.numParticles) {
+          //   var desiredIndex = (k < _this.opts.lineSegments / 3 + frontBlinkIndex) ? k : (_this.opts.lineSegments / 3 + _this.opts.numParticles - frontBlinkIndex)
+          //   // var desiredIndex = checkIndex(k,_this.opts.numParticles)
+          //   var rIndex = constrain(Math.floor(desiredIndex), 0, pointList2.length - 1);
+          //   var point = utils.mapPoint(pointList2[k].lat, pointList2[k].lon);
+          //   var particle = new THREE.Vector3(point.x * altitude, point.y * altitude, point.z * altitude)
+          //   particle.moveIndex = rIndex;
+          //   particle.nextIndex = rIndex + 1;
+          //   if (particle.nextIndex >= pointList2.length) {
+          //     particle.nextIndex = 0;
+          //   }
+          //   particle.lerpN = 0;
+          //   particle.path = pathList;
+          //   _this.geometrySplineDotted.vertices.push(particle);
+          // }
+          // else {
+          //   _this.geometrySplineDotted.vertices.push(0)
+          // }
         }
+
 
         var dash_length = pointList.length / 3;
         var currentLat = previous.lat;
@@ -42706,6 +42767,7 @@
         currentVert;
 
         update = function () {
+          // console.log(pointList.length)
           var nextSpot = pointList.shift();
           // var nextSpot2 = pointList2.shift();
 
@@ -42717,8 +42779,8 @@
             // currentVert2 = _this.geometrySplineDotted.vertices[x];
             // currentPoint2 = utils.mapPoint(nextSpot2.lat, nextSpot2.lon);
 
-            if (x >= nextSpot.index) {
-              currentVert.set(currentPoint.x * 1.2, currentPoint.y * 1.2, currentPoint.z * 1.2);
+            if (x < nextSpot.index) {
+              currentVert.set(currentPoint.x * altitude, currentPoint.y * altitude, currentPoint.z * altitude);
               // currentVert2.set(currentPoint2.x * 1.19, currentPoint2.y * 1.19, currentPoint2.z * 1.19);
               continue;
             }
@@ -42730,7 +42792,9 @@
             // _this.geometrySplineDotted.verticesNeedUpdate = true;
           }
           if (pointList.length > 0) {
-            setTimeout(update, _this.opts.drawTime / _this.opts.lineSegments);
+            // setTimeout(update, _this.opts.drawTime / _this.opts.lineSegments);
+            setTimeout(update, 0);
+
           }
         };
 
@@ -42779,16 +42843,22 @@
         //   }
         // };
         //更新线
+        random = function (min, max) {
+          return Math.random() * (max - min) + min;
+        }
+        this.marker.drawTime = distance < 50 ? 0 : random(100, 1000) * random(5, 10);
+        this.marker.step = distance < 50 ? 2 : 1;
+
         this.marker.updateParticles = function () {
           for (var i = 0; i < particles.geometry.vertices.length; i++) {
             var particle = particles.geometry.vertices[i];
             var path = particle.path;
             //插值？
-            particle.lerpN += 0.7;
+            particle.lerpN += 0.6;
             if (particle.lerpN > 1) {
               particle.lerpN = 0;
               particle.moveIndex = particle.nextIndex;
-              particle.nextIndex++;
+              particle.nextIndex += _this.marker.step;
               if (particle.nextIndex >= path.length) {
                 particle.moveIndex = 0;
                 particle.nextIndex = 1;
@@ -42803,7 +42873,7 @@
           }
           _this.geometrySplineDotted.verticesNeedUpdate = true;
           if (!_this.marker.is_remove) {
-            setTimeout(_this.marker.updateParticles)
+            setTimeout(_this.marker.updateParticles, _this.marker.drawTime / _this.opts.lineSegments2)
           } else {
             _this.scene.remove(_this.geometrySplineDotted)
             _this.scene.remove(particles)
@@ -42811,11 +42881,12 @@
         };
         var particles = new THREE.ParticleSystem(_this.geometrySplineDotted, pMaterial);
         particles.sortParticles = true;
-        particles.lifetime = 10;
+        particles.lifetime = 100;
         particles.dynamic = true;
         // updateLine();
         update()
-        this.marker.updateParticles()
+        setTimeout(this.marker.updateParticles)
+
         // updateDash();
 
 
@@ -42838,10 +42909,12 @@
       var update = function (ref) {
         ref.geometrySplineDotted.vertices = []
         for (var i = 0; i < x; i++) {
-          ref.geometrySpline.vertices[i].set(ref.geometrySpline.vertices[i + 1]);
-          // ref.geometrySplineDotted.vertices[i].set(ref.geometrySplineDotted.vertices[i + 1]);
-          ref.geometrySpline.verticesNeedUpdate = true;
-          ref.geometrySplineDotted.verticesNeedUpdate = true;
+          if (ref.geometrySpline.vertices[i]) {
+            ref.geometrySpline.vertices[i].set(ref.geometrySpline.vertices[i + 1]);
+            // ref.geometrySplineDotted.vertices[i].set(ref.geometrySplineDotted.vertices[i + 1]);
+            ref.geometrySpline.verticesNeedUpdate = true;
+            ref.geometrySplineDotted.verticesNeedUpdate = true;
+          }
         }
 
         x++;
@@ -42896,9 +42969,9 @@
         smokeColor: "#FFF",
         labelColor: "#FFF",
         font: "Inconsolata",
-        showLabel: (text.length > 0),
-        showTop: (text.length > 0),
-        showSmoke: (text.length > 0)
+        showLabel: false,
+        showTop: false,
+        showSmoke: false
       }
 
       var lineMaterial,
@@ -43705,7 +43778,6 @@
       },
 
       createLabel: function (text, size, color, font, underlineColor) {
-
         var canvas = document.createElement("canvas");
         var context = canvas.getContext("2d");
         context.font = size + "pt " + font;
@@ -43725,6 +43797,8 @@
 
         if (underlineColor) {
           canvas.height += 30;
+        } else {
+          canvas.height = size + 10;
         }
         context.font = size + "pt " + font;
 
