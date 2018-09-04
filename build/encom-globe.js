@@ -42620,7 +42620,7 @@
           color: '#ea376f',
           transparent: true,
           linewidth: 2,
-          opacity: .4
+          opacity: .2
         });
 
         _this.geometrySplineDotted = new THREE.Geometry();
