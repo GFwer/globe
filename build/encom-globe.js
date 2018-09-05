@@ -42559,6 +42559,9 @@
       }
 
       if (this.opts.showLabel) {
+        if(typeof text!='string'){
+          text = (text && text[0])?text[0]:'';
+        }
         labelCanvas = utils.createLabel(text.toUpperCase(), this.opts.fontSize, this.opts.warnColor ? this.opts.warnColor : this.opts.labelColor, this.opts.font, this.markerUnderLineColor);//text, size, color, font, underlineColor
         labelTexture = new THREE.Texture(labelCanvas);
         labelTexture.needsUpdate = true;
