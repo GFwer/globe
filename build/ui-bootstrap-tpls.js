@@ -5279,6 +5279,9 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.s
               var delay = parseInt(attrs[prefix + 'PopupDelay'], 10);
               var closeDelay = parseInt(attrs[prefix + 'PopupCloseDelay'], 10);
               ttScope.popupDelay = !isNaN(delay) ? delay : options.popupDelay;
+	      if(attrs['tooltipHover']){
+	      	   options.popupCloseDelay = 100;
+	      }
               ttScope.popupCloseDelay = !isNaN(closeDelay) ? closeDelay : options.popupCloseDelay;
             }
 
