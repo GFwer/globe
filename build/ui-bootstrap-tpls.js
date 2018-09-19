@@ -5231,8 +5231,10 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.s
               openedTooltips.add(ttScope, {
                 close: hide
               });
-              tooltip.on('mouseenter',show)
-              tooltip.on('mouseleave',hide)
+              if(attrs['tooltipHover'] != undefined){
+                tooltip.on('mouseenter',show)
+                tooltip.on('mouseleave',hide)
+              }
               prepObservers();
             }
 
